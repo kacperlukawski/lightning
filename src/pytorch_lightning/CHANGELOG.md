@@ -22,6 +22,9 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/).
 - Raised a `MisconfigurationException` if batch transfer hooks are overriden with `IPUAccelerator` ([13961](https://github.com/Lightning-AI/lightning/pull/13961))
 
 
+- Enabled `on_before_batch_transfer` for `DPStrategy` and `IPUAccelerator` ([14023](https://github.com/Lightning-AI/lightning/pull/14023))
+
+
 ### Deprecated
 
 -
