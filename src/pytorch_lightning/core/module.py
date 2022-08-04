@@ -289,16 +289,17 @@ class LightningModule(
         """Reference to the list of loggers in the Trainer."""
         return self.trainer.loggers if self._trainer else []
 
+    def _on_before_batch_transfer(self, batch: Any, dataloader_idx: int = 0):
+        datahook_selector = _get_datahook_selector(self._trainer)
+        hook = datahook_selector.get_hook("on_before_batch_transfer")
+        return hook(batch, dataloader_idx)
+
     def _apply_batch_transfer_handler(
         self, batch: Any, device: Optional[torch.device] = None, dataloader_idx: int = 0
     ) -> Any:
         device = device or self.device
-        datahook_selector = (
-            _DataHookSelector(self, None) if self._trainer is None else self.trainer._data_connector._datahook_selector
-        )
+        datahook_selector = _get_datahook_selector(self._trainer)
 
-        hook = datahook_selector.get_hook("on_before_batch_transfer")
-        batch = hook(batch, dataloader_idx)
         hook = datahook_selector.get_hook("transfer_batch_to_device")
         batch = hook(batch, device, dataloader_idx)
         hook = datahook_selector.get_hook("on_after_batch_transfer")
@@ -1845,6 +1846,7 @@ class LightningModule(
                 )
             input_sample = self.example_input_array
 
+        input_sample = self._on_before_batch_transfer(input_sample)
         input_sample = self._apply_batch_transfer_handler(input_sample)
 
         if not _TORCH_GREATER_EQUAL_1_10 and "example_outputs" not in kwargs:
@@ -1925,6 +1927,7 @@ class LightningModule(
                 example_inputs = self.example_input_array
 
             # automatically send example inputs to the right device and use trace
+            example_inputs = self._on_before_batch_transfer(example_inputs)
             example_inputs = self._apply_batch_transfer_handler(example_inputs)
             torchscript_module = torch.jit.trace(func=self.eval(), example_inputs=example_inputs, **kwargs)
         else:
@@ -2008,3 +2011,11 @@ class LightningModule(
         else:
             # We need to make sure the self inside the method is a weakref proxy
             self.__class__._register_load_state_dict_pre_hook(weakref.proxy(self), pre_load_state_dict_hook, True)
+
+
+def _get_datahook_selector(trainer):
+    return (
+        _DataHookSelector(trainer.lightning_module, None)
+        if trainer is None
+        else trainer._data_connector._datahook_selector
+    )
