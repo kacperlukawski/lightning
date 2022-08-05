@@ -290,7 +290,7 @@ class LightningModule(
         return self.trainer.loggers if self._trainer else []
 
     def _on_before_batch_transfer(self, batch: Any, dataloader_idx: int = 0):
-        datahook_selector = _get_datahook_selector(self._trainer)
+        datahook_selector = _get_datahook_selector(self)
         hook = datahook_selector.get_hook("on_before_batch_transfer")
         return hook(batch, dataloader_idx)
 
@@ -298,7 +298,7 @@ class LightningModule(
         self, batch: Any, device: Optional[torch.device] = None, dataloader_idx: int = 0
     ) -> Any:
         device = device or self.device
-        datahook_selector = _get_datahook_selector(self._trainer)
+        datahook_selector = _get_datahook_selector(self)
 
         hook = datahook_selector.get_hook("transfer_batch_to_device")
         batch = hook(batch, device, dataloader_idx)
@@ -2013,9 +2013,6 @@ class LightningModule(
             self.__class__._register_load_state_dict_pre_hook(weakref.proxy(self), pre_load_state_dict_hook, True)
 
 
-def _get_datahook_selector(trainer):
-    return (
-        _DataHookSelector(trainer.lightning_module, None)
-        if trainer is None
-        else trainer._data_connector._datahook_selector
-    )
+def _get_datahook_selector(pl_module: "pl.LightningModule") -> _DataHookSelector:
+    trainer = pl_module._trainer
+    return _DataHookSelector(pl_module, None) if trainer is None else trainer._data_connector._datahook_selector
